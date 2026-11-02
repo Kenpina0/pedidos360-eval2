@@ -101,25 +101,37 @@ jobs:
           port: ${{ secrets.EC2_PORT || 22 }}
           script: |
             set -e
+
+            # 1) Autenticarse contra GHCR (el PAT necesita read:packages)
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
+            # 2) Descargar la imagen recién publicada
             docker pull ghcr.io/${{ env.IMAGE_NAME }}:latest
 
-            docker stop pedidos360-backend || true
-            docker rm pedidos360-backend || true
+            # 3) Actualizar el proyecto docker compose que ya corre en la EC2
+            cd ~/pedidos360/infra
 
-            docker run -d \
-              --name pedidos360-backend \
-              --restart unless-stopped \
-              -p 80:8080 \
-              -e SERVER_PORT=8080 \
-              -e COGNITO_ISSUER_URI="${{ secrets.COGNITO_ISSUER_URI }}" \
-              -e RABBITMQ_HOST="${{ secrets.RABBITMQ_HOST }}" \
-              -e RABBITMQ_PORT=5672 \
-              -e RABBITMQ_USER="${{ secrets.RABBITMQ_USER }}" \
-              -e RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}" \
-              -e CORS_ALLOWED_ORIGINS="${{ secrets.CORS_ALLOWED_ORIGINS }}" \
-              ghcr.io/${{ env.IMAGE_NAME }}:latest
+            # Apunta el servicio `backend` a la imagen de GHCR (idempotente)
+            if grep -q '^BACKEND_IMAGE=' .env; then
+              sed -i "s|^BACKEND_IMAGE=.*|BACKEND_IMAGE=ghcr.io/${{ env.IMAGE_NAME }}:latest|" .env
+            else
+              echo "BACKEND_IMAGE=ghcr.io/${{ env.IMAGE_NAME }}:latest" >> .env
+            fi
 
-            echo "Desplegado. Estado del contenedor:"
+            # 4) Recrear solo el backend, sin tocar RabbitMQ ni el frontend
+            docker compose up -d --no-deps backend
+
+            echo "--- Desplegado. Estado del contenedor: ---"
             docker ps --filter name=pedidos360-backend
+
+            echo "--- Health check ---"
+            for i in $(seq 1 20); do
+              if curl -fsS http://localhost:8080/api/health >/dev/null 2>&1; then
+                echo "Backend OK: $(curl -s http://localhost:8080/api/health)"
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "El backend no respondió al health check"
+            docker logs --tail 50 pedidos360-backend
+            exit 1
