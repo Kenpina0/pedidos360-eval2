@@ -1,0 +1,68 @@
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: pedidos360-backend
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${COGNITO_ISSUER_URI:}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000ms
+          multiplier: 2.0
+          max-interval: 10000ms
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  security:
+    enabled: ${SECURITY_ENABLED:true}
+  rabbit:
+    direct-exchange: pedidos.direct
+    topic-exchange: pedidos.topic
+    dlx-exchange: pedidos.dlx
+    queues:
+      notificaciones: notificaciones.queue
+      tickets: tickets.queue
+      documentos: documentos.queue
+    dlqs:
+      notificaciones: notificaciones.dlq
+      tickets: tickets.dlq
+      documentos: documentos.dlq
+    routing-keys:
+      pedido-creado: pedido.creado
+      pedido-creado-ticket: pedido.creado.ticket
+      pedido-creado-documento: pedido.creado.documento
+      pedido-actualizado-ticket: pedido.actualizado.ticket
+      pedido-cancelado-documento: pedido.cancelado.documento
+      notificaciones-dlq: notificaciones.dlq
+      tickets-dlq: tickets.dlq
+      documentos-dlq: documentos.dlq
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

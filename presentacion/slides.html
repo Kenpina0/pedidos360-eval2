@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Pedidos360 · Evaluación Parcial N°2</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    color: #0f172a;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .slide {
+    width: 297mm;
+    height: 210mm;
+    padding: 16mm 18mm;
+    page-break-after: always;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+  }
+  .slide:last-child { page-break-after: auto; }
+
+  /* ---------- Portada ---------- */
+  .cover {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0e7490 100%);
+    color: #fff;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .cover .kicker {
+    font-size: 13px; letter-spacing: .22em; text-transform: uppercase;
+    color: #a5b4fc; font-weight: 700; margin-bottom: 10mm;
+  }
+  .cover h1 { font-size: 54px; line-height: 1.05; letter-spacing: -1.5px; margin-bottom: 6mm; }
+  .cover h2 { font-size: 20px; font-weight: 400; color: #c7d2fe; margin-bottom: 12mm; }
+  .cover .tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cover .tag {
+    font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25);
+  }
+  .cover .foot {
+    position: absolute; bottom: 14mm; left: 18mm; right: 18mm;
+    display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;
+  }
+
+  /* ---------- Encabezado de contenido ---------- */
+  .head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 7mm; border-bottom: 2px solid #e2e8f0; padding-bottom: 3mm; }
+  .head .num {
+    font-size: 12px; font-weight: 800; color: #fff; background: #4f46e5;
+    width: 26px; height: 26px; border-radius: 8px; display: inline-flex;
+    align-items: center; justify-content: center; flex: 0 0 auto;
+  }
+  .head h2 { font-size: 27px; letter-spacing: -0.5px; }
+  .head .sub { margin-left: auto; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+
+  h3 { font-size: 15px; color: #4f46e5; margin-bottom: 3mm; text-transform: uppercase; letter-spacing: .06em; }
+  p, li { font-size: 14px; line-height: 1.55; color: #334155; }
+  ul { padding-left: 5mm; }
+  li { margin-bottom: 2.2mm; }
+  code {
+    font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
+    background: #eef2ff; color: #3730a3; padding: 1px 5px; border-radius: 4px;
+  }
+  .muted { color: #64748b; }
+
+  .cols { display: flex; gap: 8mm; flex: 1; }
+  .col { flex: 1; }
+  .col-40 { flex: 0 0 40%; }
+  .col-60 { flex: 0 0 60%; }
+
+  .card {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 5mm; margin-bottom: 4mm;
+  }
+  .card h4 { font-size: 14px; margin-bottom: 2mm; color: #0f172a; }
+  .card p, .card li { font-size: 12.5px; }
+
+  .kpi { display: flex; gap: 4mm; margin-top: 4mm; }
+  .kpi div {
+    flex: 1; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px;
+    padding: 4mm; text-align: center;
+  }
+  .kpi strong { display: block; font-size: 24px; color: #3730a3; }
+  .kpi span { font-size: 11px; color: #475569; text-transform: uppercase; letter-spacing: .05em; }
+
+  /* ---------- Diagrama de arquitectura ---------- */
+  .arch { display: flex; align-items: center; justify-content: space-between; gap: 3mm; margin: 6mm 0; }
+  .arch .box {
+    flex: 1; border-radius: 12px; padding: 5mm 3mm; text-align: center;
+    color: #fff; font-weight: 700; font-size: 13px; line-height: 1.3;
+    min-height: 26mm; display: flex; flex-direction: column; justify-content: center;
+  }
+  .arch .box small { display: block; font-weight: 400; font-size: 10.5px; opacity: .85; margin-top: 2px; }
+  .arch .arrow { color: #94a3b8; font-size: 20px; font-weight: 700; flex: 0 0 auto; }
+  .b-react { background: linear-gradient(135deg,#0ea5e9,#06b6d4); }
+  .b-cog   { background: linear-gradient(135deg,#7c3aed,#a855f7); }
+  .b-gw    { background: linear-gradient(135deg,#4f46e5,#6366f1); }
+  .b-be    { background: linear-gradient(135deg,#059669,#10b981); }
+  .b-rmq   { background: linear-gradient(135deg,#ea580c,#f97316); }
+
+  /* ---------- Tabla ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+    color: #475569; background: #f1f5f9; padding: 2.5mm 3mm; border-bottom: 1px solid #cbd5e1;
+  }
+  td { padding: 2.4mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .pct { font-weight: 800; color: #4f46e5; white-space: nowrap; }
+  .ok { color: #16a34a; font-weight: 700; }
+
+  /* ---------- Flujo ---------- */
+  .flow { display: flex; gap: 2mm; align-items: stretch; margin-top: 3mm; }
+  .flow .step {
+    flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #4f46e5;
+    border-radius: 8px; padding: 3.5mm; font-size: 12px;
+  }
+  .flow .step strong { display: block; font-size: 12.5px; margin-bottom: 1mm; color: #1e1b4b; }
+
+  .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+  .pill.g { background: #dcfce7; color: #166534; }
+  .pill.r { background: #fee2e2; color: #991b1b; }
+  .pill.b { background: #dbeafe; color: #1e40af; }
+
+  .footer-num {
+    position: absolute; bottom: 8mm; right: 18mm; font-size: 11px; color: #94a3b8;
+  }
+  .note {
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
+    padding: 4mm; font-size: 12px; color: #92400e; margin-top: 3mm;
+  }
+</style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+
+<!-- ============ 1 · PORTADA ============ -->
+<section class="slide cover">
+  <div class="kicker">DSY1107 · Evaluación Parcial N°2</div>
+  <h1>Pedidos360</h1>
+  <h2>Aplicación cloud-native: EC2 · Spring Boot · GitHub Actions · Cognito · API Gateway · React · RabbitMQ</h2>
+  <div class="tags">
+    <span class="tag">AWS EC2</span>
+    <span class="tag">Spring Boot 3</span>
+    <span class="tag">CI/CD GHCR</span>
+    <span class="tag">Cognito OIDC</span>
+    <span class="tag">API Gateway</span>
+    <span class="tag">RabbitMQ 2 nodos</span>
+  </div>
+  <div class="foot">
+    <span>Presentación individual · 5–10 minutos</span>
+    <span>2026</span>
+  </div>
+</section>
+
+<!-- ============ 2 · ARQUITECTURA ============ -->
+<section class="slide">
+  <div class="head"><span class="num">1</span><h2>Arquitectura de la solución</h2><span class="sub">Visión general</span></div>
+  <div class="arch">
+    <div class="box b-react">React + Vite<small>OAuth 2.0 / OIDC</small></div>
+    <div class="arrow">→</div>
+    <div class="box b-cog">AWS Cognito<small>User Pool · Grupos</small></div>
+    <div class="arrow">→</div>
+    <div class="box b-gw">API Gateway<small>JWT Authorizer</small></div>
+    <div class="arrow">→</div>
+    <div class="box b-be">Spring Boot<small>EC2 · Docker</small></div>
+    <div class="arrow">→</div>
+    <div class="box b-rmq">RabbitMQ<small>Clúster 2 nodos</small></div>
+  </div>
+  <div class="cols">
+    <div class="col">
+      <h3>Flujo de autenticación</h3>
+      <ul>
+        <li>El frontend redirige al <b>Hosted UI</b> de Cognito (code + PKCE).</li>
+        <li>Cognito devuelve un <b>JWT</b> con el claim <code>cognito:groups</code>.</li>
+        <li>El API Gateway valida el token antes de enrutar.</li>
+        <li>Spring Security valida firma, issuer, expiración y audience.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>Flujo de mensajería</h3>
+      <ul>
+        <li><b>Direct</b> exchange → notificaciones.</li>
+        <li><b>Topic</b> exchange → tickets y documentos.</li>
+        <li>Error de negocio → <b>NACK</b> → DLX → <b>DLQ</b>.</li>
+        <li>Topología declarada por código y por <code>definitions.json</code>.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-num">2 / 11</div>
+</section>
+
+<!-- ============ 3 · TAREA 1 ============ -->
+<section class="slide">
+  <div class="head"><span class="num">2</span><h2>Tarea 1 · Instancia EC2 y acceso SSH</h2><span class="sub">Infraestructura</span></div>
+  <div class="cols">
+    <div class="col-60">
+      <h3>Procedimiento</h3>
+      <ul>
+        <li>Key pair <code>pedidos360-key.pem</code> y Security Group con puertos 22, 80, 8080, 15672, 15673.</li>
+        <li>Instancia <b>Amazon Linux 2023</b> <code>t3.micro</code>, etiquetada <code>pedidos360-ec2</code>.</li>
+        <li>Bootstrap con <code>infra/ec2-setup.sh</code>: instala Docker Engine y Compose v2.</li>
+        <li>Comprobación de acceso por SSH con hostname y versión del sistema.</li>
+      </ul>
+      <div class="card">
+        <h4>Comando de verificación</h4>
+        <p><code>ssh -i pedidos360-key.pem ec2-user@&lt;IP&gt; "hostname &amp;&amp; cat /etc/os-release | head -2"</code></p>
+      </div>
+    </div>
+    <div class="col-40">
+      <div class="card">
+        <h4>Resultado esperado</h4>
+        <p class="muted">ip-172-31-xx-xx.ec2.internal</p>
+        <p class="muted">NAME="Amazon Linux"</p>
+        <p class="muted">VERSION="2023"</p>
+      </div>
+      <div class="kpi">
+        <div><strong>2</strong><span>Nodos RMQ</span></div>
+        <div><strong>3</strong><span>Colas + DLQ</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-num">3 / 11</div>
+</section>
+
+<!-- ============ 4 · TAREA 2 ============ -->
+<section class="slide">
+  <div class="head"><span class="num">3</span><h2>Tarea 2 · Spring Boot, puerto y GitHub</h2><span class="sub">Backend</span></div>
+  <div class="cols">
+    <div class="col">
+      <h3>Stack y estructura</h3>
+      <ul>
+        <li><b>Spring Boot 3.3.5</b> · Java 17 · Maven.</li>
+        <li>Web, Security, OAuth2 Resource Server, AMQP, Validation, Actuator.</li>
+        <li>Paquetes: <code>config</code>, <code>messaging</code>, <code>service</code>, <code>web</code>, <code>dto</code>, <code>exception</code>.</li>
+        <li>Puerto parametrizado: <code>server.port: ${SERVER_PORT:8080}</code>.</li>
+      </ul>
+      <div class="card">
+        <h4>Compilación</h4>
+        <p><code>mvn -B clean verify</code> → <span class="ok">BUILD SUCCESS</span></p>
+      </div>
+    </div>
+    <div class="col">
+      <h3>Separación de responsabilidades</h3>
+      <table>
+        <tr><th>Capa</th><th>Responsabilidad</th></tr>
+        <tr><td><code>web</code></td><td>REST + validación</td></tr>
+        <tr><td><code>service</code></td><td>Reglas de negocio</td></tr>
+        <tr><td><code>messaging</code></td><td>Publisher + consumers</td></tr>
+        <tr><td><code>config</code></td><td>Topología RabbitMQ y seguridad</td></tr>
+      </table>
+      <div class="note">El código está versionado en GitHub con <code>main</code> como rama de despliegue.</div>
+    </div>
+  </div>
+  <div class="footer-num">4 / 11</div>
+</section>
+
+<!-- ============ 5 · TAREA 3 ============ -->
+<section class="slide">
+  <div class="head"><span class="num">4</span><h2>Tarea 3 · GitHub Actions + GHCR + Docker → EC2</h2><span class="sub">CI/CD</span></div>
+  <div class="flow">
+    <div class="step"><strong>1 · Build &amp; Test</strong>Maven con JDK 17, publica el JAR como artefacto.</div>
+    <div class="step"><strong>2 · Docker → GHCR</strong>Buildx publica <code>ghcr.io/&lt;owner&gt;/pedidos360-backend</code> con tags <code>latest</code> y <code>sha</code>.</div>
+    <div class="step"><strong>3 · Deploy EC2</strong>SSH: <code>docker pull</code>, recrea el contenedor en <code>-p 80:8080</code>.</div>
+  </div>
+  <div class="cols" style="margin-top:6mm">
+    <div class="col">
+      <h3>Secrets utilizados</h3>
+      <ul>
+        <li><code>EC2_HOST</code>, <code>EC2_USER</code>, <code>EC2_SSH_KEY</code></li>
+        <li><code>GHCR_PAT</code> para el pull desde la instancia</li>
+        <li><code>COGNITO_ISSUER_URI</code>, <code>RABBITMQ_*</code>, <code>CORS_ALLOWED_ORIGINS</code></li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>Verificación</h3>
+      <div class="card">
+        <p><code>docker ps --filter name=pedidos360-backend</code></p>
+        <p><code>curl http://&lt;IP&gt;/api/health</code> → <span class="pill g">200 UP</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="footer-num">5 / 11</div>
+</section>
+
+<!-- ============ 6 · TAREA 4 ============ -->
+<section class="slide">
+  <div class="head"><span class="num">5</span><h2>Tarea 4 · Cognito y API Gateway</h2><span class="sub">Seguridad</span></div>
+  <div class="cols">
+    <div class="col">
+      <h3>IDaaS · AWS Cognito</h3>
+      <ul>
+        <li>User Pool <code>pedidos360-pool</code> con login por email.</li>
+        <li>Grupos: <span class="pill b">ADMIN</span> <span class="pill b">COLLABORATOR</span> <span class="pill b">CUSTOMER</span></li>
+        <li>App Client SPA sin secret · Authorization Code + PKCE.</li>
+        <li>Hosted UI con dominio propio de Cognito.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>API Gateway + autorización</h3>
+      <ul>
+        <li>HTTP API con integración proxy a la EC2.</li>
+        <li>Autorizador <b>JWT</b> (issuer + audience del User Pool).</li>
+        <li>Ruta pública: <code>GET /api/health</code>.</li>
+        <li>Rutas protegidas: <code>ANY /{proxy+}</code>.</li>
+      </ul>
+      <div class="card">
+        <p>Reglas del backend por rol:</p>
+        <p><span class="pill g">GET</span> autenticado · <span class="pill b">POST/PUT</span> ADMIN/COLLAB · <span class="pill r">DELETE</span> ADMIN</p>
+      </div>
+    </div>
+  </div>
+  <div class="footer-num">6 / 11</div>
+</section>
+
+<!-- ============ 7 · TAREA 5 ============ -->
+<section class="slide">
+  <div class="head"><span class="num">6</span><h2>Tarea 5 · React + Cognito (login probado)</h2><span class="sub">Frontend</span></div>
+  <div class="cols">
+    <div class="col">
+      <h3>Implementación</h3>
+      <ul>
+        <li>React 18 + TypeScript + Vite.</li>
+        <li><code>react-oidc-context</code> + <code>oidc-client-ts</code>.</li>
+        <li><code>response_type: 'code'</code>, scope <code>openid email profile</code>.</li>
+        <li>El token se adjunta como <code>Authorization: Bearer</code>.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>Demo</h3>
+      <div class="card">
+        <p>1. Clic en <b>Iniciar sesión con Cognito</b>.</p>
+        <p>2. Hosted UI → <code>admin@pedidos360.cl</code>.</p>
+        <p>3. La app muestra email, grupo <span class="pill b">ADMIN</span> y el JWT.</p>
+        <p>4. Crear pedido → aparece en la tabla.</p>
+      </div>
+      <div class="note">El grupo determina las acciones disponibles; un CUSTOMER solo puede leer.</div>
+    </div>
+  </div>
+  <div class="footer-num">7 / 11</div>
+</section>
+
+<!-- ============ 8 · RABBIT TOPOLOGIA ============ -->
+<section class="slide">
+  <div class="head"><span class="num">7</span><h2>RabbitMQ · Topología de 3 colas + DLQ</h2><span class="sub">Rúbrica 12 % · 13 %</span></div>
+  <div class="cols">
+    <div class="col">
+      <h3>Exchanges y bindings</h3>
+      <table>
+        <tr><th>Exchange</th><th>Tipo</th><th>Routing key</th><th>Cola</th></tr>
+        <tr><td>pedidos.direct</td><td>direct</td><td>pedido.creado</td><td>notificaciones.queue</td></tr>
+        <tr><td>pedidos.topic</td><td>topic</td><td>pedido.*.ticket</td><td>tickets.queue</td></tr>
+        <tr><td>pedidos.topic</td><td>topic</td><td>pedido.*.documento</td><td>documentos.queue</td></tr>
+        <tr><td>pedidos.dlx</td><td>direct</td><td>&lt;dominio&gt;.dlq</td><td>&lt;dominio&gt;.dlq</td></tr>
+      </table>
+    </div>
+    <div class="col-40">
+      <h3>Centralización</h3>
+      <div class="card">
+        <p>Todos los nombres en <code>application.yml</code> bajo <code>app.rabbit</code>.</p>
+        <p>Leídos con <code>@ConfigurationProperties</code> en <code>RabbitProperties</code>.</p>
+        <p>Sin nombres hardcodeados en consumidores.</p>
+      </div>
+      <div class="kpi">
+        <div><strong>3</strong><span>Colas</span></div>
+        <div><strong>3</strong><span>DLQ</span></div>
+        <div><strong>3</strong><span>Exchanges</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-num">8 / 11</div>
+</section>
+
+<!-- ============ 9 · ACK/NACK + ADMIN ============ -->
+<section class="slide">
+  <div class="head"><span class="num">8</span><h2>ACK/NACK, DLQ y microservicio de administración</h2><span class="sub">Rúbrica 15 % · 20 % · 13 % · 10 % · 7 %</span></div>
+  <div class="cols">
+    <div class="col">
+      <h3>Consumidores por dominio</h3>
+      <ul>
+        <li><code>NotificacionConsumer</code> → notificaciones.queue</li>
+        <li><code>TicketConsumer</code> → tickets.queue (cantidad &gt; 100 falla)</li>
+        <li><code>DocumentoConsumer</code> → documentos.queue</li>
+      </ul>
+      <div class="card">
+        <p><code>basicAck(tag,false)</code> al procesar OK.</p>
+        <p><code>basicNack(tag,false,false)</code> ante error → DLQ.</p>
+        <p>Retry: 3 intentos con backoff exponencial.</p>
+      </div>
+    </div>
+    <div class="col">
+      <h3>API de administración</h3>
+      <table>
+        <tr><th>Método</th><th>Ruta</th></tr>
+        <tr><td>GET</td><td>/api/admin/queues</td></tr>
+        <tr><td>POST</td><td>/api/admin/queues</td></tr>
+        <tr><td>DELETE</td><td>/api/admin/queues/{name}</td></tr>
+        <tr><td>GET / POST</td><td>/api/admin/exchanges</td></tr>
+      </table>
+      <div class="note">Lógica en <code>RabbitAdminService</code> · parámetros validados con <code>@NotBlank</code> y <code>@Pattern</code>.</div>
+    </div>
+  </div>
+  <div class="footer-num">9 / 11</div>
+</section>
+
+<!-- ============ 10 · CLUSTER ============ -->
+<section class="slide">
+  <div class="head"><span class="num">9</span><h2>Clúster RabbitMQ de 2 nodos</h2><span class="sub">docker-compose</span></div>
+  <div class="cols">
+    <div class="col">
+      <h3>Servicios</h3>
+      <div class="card">
+        <h4>rabbitmq-1 · nodo semilla</h4>
+        <p>AMQP <code>:5672</code> · Management <code>:15672</code></p>
+        <p>Importa <code>definitions.json</code> (3 colas + 3 DLQ + exchanges).</p>
+      </div>
+      <div class="card">
+        <h4>rabbitmq-2 · se une al clúster</h4>
+        <p>AMQP <code>:5673</code> · Management <code>:15673</code></p>
+        <p><code>rabbitmqctl join_cluster rabbit@rabbitmq-1</code></p>
+      </div>
+    </div>
+    <div class="col">
+      <h3>Verificación en vivo</h3>
+      <div class="card">
+        <p><code>docker exec rabbitmq-1 rabbitmqctl cluster_status</code></p>
+        <p class="muted">→ rabbit@rabbitmq-1, rabbit@rabbitmq-2</p>
+        <p><code>docker exec rabbitmq-1 rabbitmqctl list_queues name messages</code></p>
+        <p class="muted">→ 3 colas + 3 DLQ</p>
+      </div>
+      <div class="note">Cookie Erlang compartida y política <code>ha-all</code> para replicación.</div>
+    </div>
+  </div>
+  <div class="footer-num">10 / 11</div>
+</section>
+
+<!-- ============ 11 · RUBRICA ============ -->
+<section class="slide">
+  <div class="head"><span class="num">10</span><h2>Cumplimiento de la rúbrica</h2><span class="sub">100 %</span></div>
+  <table>
+    <tr><th>Indicador</th><th>%</th><th>Evidencia</th><th>Estado</th></tr>
+    <tr><td>Nombres centralizados en application.yml</td><td class="pct">12 %</td><td><code>application.yml:39-59</code> + <code>RabbitProperties</code></td><td class="ok">✔</td></tr>
+    <tr><td>Beans Queue / Exchange / Binding</td><td class="pct">13 %</td><td><code>RabbitMQConfig.java:33-131</code></td><td class="ok">✔</td></tr>
+    <tr><td>Separación negocio / mensajería</td><td class="pct">10 %</td><td><code>PedidoService</code> ↔ <code>PedidoEventPublisher</code></td><td class="ok">✔</td></tr>
+    <tr><td>Consumers @RabbitListener por dominio</td><td class="pct">15 %</td><td>3 consumidores (notif/tickets/docs)</td><td class="ok">✔</td></tr>
+    <tr><td>ACK/NACK + retry + DLQ</td><td class="pct">20 %</td><td><code>basicAck</code> / <code>basicNack(false)</code> + retry</td><td class="ok">✔</td></tr>
+    <tr><td>Microservicio admin REST</td><td class="pct">13 %</td><td><code>RabbitAdminController</code></td><td class="ok">✔</td></tr>
+    <tr><td>Lógica encapsulada en servicio</td><td class="pct">10 %</td><td><code>RabbitAdminService</code></td><td class="ok">✔</td></tr>
+    <tr><td>Validación de parámetros</td><td class="pct">7 %</td><td><code>@NotBlank</code> + <code>@Pattern</code> + handler</td><td class="ok">✔</td></tr>
+  </table>
+  <div class="note">Además: 2 nodos en clúster, 3 colas con DLQ, exchanges direct y topic, y docker-compose operativo.</div>
+  <div class="footer-num">11 / 11</div>
+</section>
+
+</body>
+</html>

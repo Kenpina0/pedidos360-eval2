@@ -1,0 +1,157 @@
+{
+  "rabbit_version": "3.13.7",
+  "rabbitmq_version": "3.13.7",
+  "product_name": "RabbitMQ",
+  "product_version": "3.13.7",
+  "users": [],
+  "vhosts": [
+    { "name": "/" }
+  ],
+  "permissions": [],
+  "parameters": {},
+  "global_parameters": [
+    { "name": "cluster_name", "value": "pedidos360-cluster" }
+  ],
+  "policies": [
+    {
+      "vhost": "/",
+      "name": "ha-all",
+      "pattern": "^(?!amq\\.)",
+      "apply-to": "queues",
+      "definition": { "ha-mode": "all", "ha-sync-mode": "automatic" },
+      "priority": 0
+    }
+  ],
+  "queues": [
+    {
+      "name": "notificaciones.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "pedidos.dlx",
+        "x-dead-letter-routing-key": "notificaciones.dlq"
+      }
+    },
+    {
+      "name": "tickets.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "pedidos.dlx",
+        "x-dead-letter-routing-key": "tickets.dlq"
+      }
+    },
+    {
+      "name": "documentos.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "pedidos.dlx",
+        "x-dead-letter-routing-key": "documentos.dlq"
+      }
+    },
+    {
+      "name": "notificaciones.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "tickets.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "documentos.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "pedidos.direct",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "pedidos.topic",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "pedidos.dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "pedidos.direct",
+      "vhost": "/",
+      "destination": "notificaciones.queue",
+      "destination_type": "queue",
+      "routing_key": "pedido.creado",
+      "arguments": {}
+    },
+    {
+      "source": "pedidos.topic",
+      "vhost": "/",
+      "destination": "tickets.queue",
+      "destination_type": "queue",
+      "routing_key": "pedido.*.ticket",
+      "arguments": {}
+    },
+    {
+      "source": "pedidos.topic",
+      "vhost": "/",
+      "destination": "documentos.queue",
+      "destination_type": "queue",
+      "routing_key": "pedido.*.documento",
+      "arguments": {}
+    },
+    {
+      "source": "pedidos.dlx",
+      "vhost": "/",
+      "destination": "notificaciones.dlq",
+      "destination_type": "queue",
+      "routing_key": "notificaciones.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "pedidos.dlx",
+      "vhost": "/",
+      "destination": "tickets.dlq",
+      "destination_type": "queue",
+      "routing_key": "tickets.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "pedidos.dlx",
+      "vhost": "/",
+      "destination": "documentos.dlq",
+      "destination_type": "queue",
+      "routing_key": "documentos.dlq",
+      "arguments": {}
+    }
+  ]
+}

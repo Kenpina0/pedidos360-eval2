@@ -1,0 +1,124 @@
+# =============================================================================
+# Pedidos360 · Clúster RabbitMQ de 2 nodos + backend + frontend
+# -----------------------------------------------------------------------------
+#   docker compose up -d
+#   Consola nodo 1: http://localhost:15672   (pedidos / pedidos123)
+#   Consola nodo 2: http://localhost:15673
+#   Backend:        http://localhost:8080
+#   Frontend:       http://localhost:5173
+# =============================================================================
+name: pedidos360
+
+x-rabbit-common: &rabbit-common
+  image: rabbitmq:3.13-management
+  environment:
+    RABBITMQ_ERLANG_COOKIE: "PEDIDOS360CLUSTERSECRETCOOKIE2026"
+    RABBITMQ_DEFAULT_USER: "pedidos"
+    RABBITMQ_DEFAULT_PASS: "pedidos123"
+    RABBITMQ_DEFAULT_VHOST: "/"
+  networks:
+    - pedidos-net
+  restart: unless-stopped
+
+services:
+  # ---------------------------------------------------------------------------
+  # Nodo 1 · nodo "semilla" del clúster
+  # ---------------------------------------------------------------------------
+  rabbitmq-1:
+    <<: *rabbit-common
+    container_name: rabbitmq-1
+    hostname: rabbitmq-1
+    ports:
+      - "5672:5672"      # AMQP
+      - "15672:15672"    # Management UI
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - rabbitmq-1-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Nodo 2 · se une al clúster de rabbitmq-1
+  # ---------------------------------------------------------------------------
+  rabbitmq-2:
+    <<: *rabbit-common
+    container_name: rabbitmq-2
+    hostname: rabbitmq-2
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - rabbitmq-2-data:/var/lib/rabbitmq
+    depends_on:
+      rabbitmq-1:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        echo ">> Arrancando nodo 2..."
+        /opt/rabbitmq/sbin/rabbitmq-server &
+        SERVER_PID=$$!
+        echo ">> Esperando a que el nodo local responda..."
+        until rabbitmq-diagnostics -q ping >/dev/null 2>&1; do sleep 3; done
+        echo ">> Uniéndose al clúster rabbit@rabbitmq-1..."
+        rabbitmqctl stop_app
+        rabbitmqctl reset
+        rabbitmqctl join_cluster rabbit@rabbitmq-1
+        rabbitmqctl start_app
+        echo ">> Nodo 2 unido. Estado del clúster:"
+        rabbitmqctl cluster_status || true
+        wait $$SERVER_PID
+
+  # ---------------------------------------------------------------------------
+  # Backend Spring Boot (imagen publicada por GitHub Actions en GHCR)
+  # ---------------------------------------------------------------------------
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/OWNER/pedidos360-backend:latest}
+    container_name: pedidos360-backend
+    depends_on:
+      rabbitmq-1:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: "8080"
+      RABBITMQ_HOST: "rabbitmq-1"
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: "pedidos"
+      RABBITMQ_PASSWORD: "pedidos123"
+      COGNITO_ISSUER_URI: "${COGNITO_ISSUER_URI:-}"
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-http://localhost:5173}"
+    ports:
+      - "8080:8080"
+    networks:
+      - pedidos-net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Frontend React servido por nginx
+  # ---------------------------------------------------------------------------
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/OWNER/pedidos360-frontend:latest}
+    container_name: pedidos360-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    networks:
+      - pedidos-net
+    restart: unless-stopped
+
+networks:
+  pedidos-net:
+    driver: bridge
+
+volumes:
+  rabbitmq-1-data:
+  rabbitmq-2-data:

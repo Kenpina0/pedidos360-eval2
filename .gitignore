@@ -1,0 +1,20 @@
+# Build
+target/
+dist/
+node_modules/
+*.jar
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Entorno y secretos
+.env
+.env.*
+!.env.example
+infra/academy/.env.generated
+*.pem
+*.ppk
+*.log
+.DS_Store
+.idea/
+.vscode/
