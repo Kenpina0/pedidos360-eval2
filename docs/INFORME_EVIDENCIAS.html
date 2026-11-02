@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10.5pt;
+         color: #1a1a1a; line-height: 1.5; margin: 0; }
+  h1 { font-size: 22pt; color: #0b3d91; border-bottom: 3px solid #0b3d91;
+       padding-bottom: 8px; margin-top: 0; }
+  h2 { font-size: 15pt; color: #0b3d91; margin-top: 26px;
+       border-left: 5px solid #0b3d91; padding-left: 10px; }
+  h3 { font-size: 12pt; color: #14509e; margin-top: 18px; }
+  pre { background: #f5f7fa; border: 1px solid #d8dee9; border-left: 4px solid #4c78a8;
+        padding: 9px 11px; font-family: "DejaVu Sans Mono", monospace;
+        font-size: 8.4pt; line-height: 1.35; white-space: pre-wrap;
+        word-wrap: break-word; page-break-inside: avoid; }
+  code { font-family: "DejaVu Sans Mono", monospace; font-size: 9pt;
+         background: #eef1f6; padding: 1px 4px; border-radius: 3px; }
+  pre code { background: none; padding: 0; font-size: 8.4pt; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0;
+          font-size: 9pt; page-break-inside: avoid; }
+  th { background: #0b3d91; color: white; text-align: left;
+       padding: 6px 8px; border: 1px solid #0b3d91; }
+  td { padding: 5px 8px; border: 1px solid #cfd8e3; vertical-align: top; }
+  tr:nth-child(even) td { background: #f7f9fc; }
+  blockquote { background: #fff8e1; border-left: 4px solid #f0ad4e;
+               margin: 14px 0; padding: 10px 14px; color: #5a4a1a; }
+  img { max-width: 100%; border: 1px solid #cfd8e3; margin: 10px 0;
+        page-break-inside: avoid; }
+  hr { border: none; border-top: 1px solid #d8dee9; margin: 22px 0; }
+  strong { color: #0b3d91; }
+</style>
+</head>
+<body><h1 align="center">Informe de Evidencias</h1>
+<h3 align="center">Pedidos360 · Evaluación Parcial N°2 · DSY1107</h3>
+<p align="center">AWS Academy Learner Lab · Cuenta 654654330164 · Región us-east-1<br>
+Fecha de verificación: 2 de noviembre de 2026</p>
+
+<hr />
+<h2 id="1-objetivo-del-informe">1. Objetivo del informe</h2>
+<p>Este documento reúne las <strong>pruebas ejecutadas sobre el sistema ya desplegado</strong>, no sobre un entorno
+local. Cada sección muestra el comando o la acción realizada y la salida real obtenida. El objetivo es
+que quien revise la evaluación pueda comprobar, sin confiar en la palabra del autor, que:</p>
+<ul>
+<li>la instancia EC2 existe, responde por SSH y tiene el stack corriendo;</li>
+<li>el clúster de RabbitMQ tiene <strong>dos nodos</strong>, <strong>tres colas de negocio</strong>, <strong>tres DLQ</strong>, exchanges
+  <strong>direct</strong> y <strong>topic</strong>, y una política de alta disponibilidad;</li>
+<li>Cognito tiene <strong>User Pool</strong>, <strong>tres grupos</strong> y <strong>tres usuarios</strong> con permisos distintos;</li>
+<li>API Gateway valida el <strong>JWT</strong> y aplica autorización por rol;</li>
+<li>el <strong>frontend React</strong> completa el flujo <strong>OAuth 2.0 / OIDC con PKCE</strong> contra el Hosted UI.</li>
+</ul>
+<hr />
+<h2 id="2-infraestructura-ec2-y-acceso-ssh">2. Infraestructura EC2 y acceso SSH</h2>
+<h3 id="21-la-instancia-existe-y-esta-corriendo">2.1 La instancia existe y está corriendo</h3>
+<pre><code class="language-bash">$ aws ec2 describe-instances --region us-east-1 \
+    --instance-ids i-03a70f0a716b69333 \
+    --query 'Reservations[0].Instances[0].[State.Name,PublicIpAddress,InstanceType]' --output text
+running   32.200.126.178   t3.micro
+</code></pre>
+<h3 id="21-bis-ip-fija">2.1-bis IP fija</h3>
+<p>La instancia tiene asociada una <strong>Elastic IP</strong> <code>32.200.126.178</code> (<code>eipalloc-04b1dfc182682f987</code>),
+de modo que apagar y volver a encender <strong>no cambia la IP</strong> y no hay que reconfigurar API Gateway,
+Cognito ni el certificado TLS.</p>
+<pre><code class="language-bash">$ aws ec2 describe-addresses --region us-east-1 \
+    --query 'Addresses[].[PublicIp,AllocationId,InstanceId]' --output text
+32.200.126.178   eipalloc-04b1dfc182682f987   i-03a70f0a716b69333
+</code></pre>
+<h3 id="22-acceso-ssh-comprobado">2.2 Acceso SSH comprobado</h3>
+<pre><code class="language-bash">$ ssh -i labsuser.pem ec2-user@32.200.126.178 'uname -a; docker --version; docker compose version'
+Linux ip-172-31-26-83.ec2.internal 6.18.56-125.164.amzn2023.x86_64 #2 SMP PREEMPT_DYNAMIC \
+  Mon Oct 19 19:39:29 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+Docker version 25.0.14, build 0bab007
+Docker Compose version v5.6.1
+</code></pre>
+<blockquote>
+<p><strong>Cumple Tarea 1</strong>: instancia EC2 levantada y proceso verificado por SSH.</p>
+</blockquote>
+<h3 id="23-contenedores-en-ejecucion">2.3 Contenedores en ejecución</h3>
+<pre><code class="language-bash">$ docker ps --format &quot;table {{.Names}}\t{{.Status}}\t{{.Ports}}&quot;
+NAMES                     STATUS                    PORTS
+pedidos360-frontend       Up 4 minutes (healthy)    0.0.0.0:5173-&gt;80/tcp
+pedidos360-frontend-tls   Up 11 minutes             0.0.0.0:8443-&gt;8443/tcp
+pedidos360-backend        Up 15 minutes             0.0.0.0:8080-&gt;8080/tcp
+rabbitmq-2                Up 15 minutes             0.0.0.0:5673-&gt;5672/tcp, 0.0.0.0:15673-&gt;15672/tcp
+rabbitmq-1                Up 16 minutes (healthy)   0.0.0.0:5672-&gt;5672/tcp, 0.0.0.0:15672-&gt;15672/tcp
+</code></pre>
+<h3 id="24-recursos-de-la-instancia">2.4 Recursos de la instancia</h3>
+<pre><code class="language-bash">$ free -m | head -2
+               total        used        free      shared  buff/cache   available
+Mem:             913         415          87          24         410         330
+
+$ swapon --show
+NAME       TYPE SIZE  USED PRIO
+/swapfile  file   2G  346.5M   -2
+</code></pre>
+<p>Los 2 GB de swap fueron necesarios porque <code>t3.micro</code> entrega solo 913 MB de RAM y conviven
+dos nodos de RabbitMQ con una JVM de Spring Boot.</p>
+<hr />
+<h2 id="3-rabbitmq-evidencias-para-la-rubrica">3. RabbitMQ — evidencias para la rúbrica</h2>
+<h3 id="31-cluster-de-dos-nodos">3.1 Clúster de dos nodos</h3>
+<pre><code class="language-bash">$ docker exec rabbitmq-1 rabbitmqctl cluster_status --formatter json
+{
+  &quot;cluster_name&quot;: &quot;pedidos360-cluster&quot;,
+  &quot;disk_nodes&quot;:    [&quot;rabbit@rabbitmq-1&quot;, &quot;rabbit@rabbitmq-2&quot;],
+  &quot;ram_nodes&quot;:     [],
+  &quot;running_nodes&quot;: [&quot;rabbit@rabbitmq-2&quot;, &quot;rabbit@rabbitmq-1&quot;],
+  &quot;partitions&quot;:    {},
+  &quot;cpu_cores&quot;:     {&quot;rabbit@rabbitmq-1&quot;: 2, &quot;rabbit@rabbitmq-2&quot;: 2},
+  &quot;versions&quot;: {
+    &quot;rabbit@rabbitmq-1&quot;: {&quot;rabbitmq_version&quot;: &quot;3.13.7&quot;, &quot;erlang_version&quot;: &quot;26.2.5.16&quot;},
+    &quot;rabbit@rabbitmq-2&quot;: {&quot;rabbitmq_version&quot;: &quot;3.13.7&quot;, &quot;erlang_version&quot;: &quot;26.2.5.16&quot;}
+  }
+}
+</code></pre>
+<p>Dos nodos de disco, sin particiones de red, ambos corriendo la misma versión.
+<strong>Indicador “clúster de 2 nodos”: cumplido.</strong></p>
+<h3 id="32-colas-y-consumidores">3.2 Colas y consumidores</h3>
+<pre><code class="language-bash">$ docker exec rabbitmq-1 rabbitmqctl list_queues name messages consumers --quiet
+name                    messages  consumers
+documentos.dlq          0         0
+tickets.dlq             1         0
+notificaciones.queue    0         1
+tickets.queue           0         1
+documentos.queue        0         1
+notificaciones.dlq      0         0
+</code></pre>
+<p>Tres colas de negocio con consumidor activo y tres colas de mensajes muertos.
+<strong>Indicador “3 colas + 3 DLQ”: cumplido.</strong></p>
+<h3 id="33-exchanges">3.3 Exchanges</h3>
+<pre><code class="language-bash">$ docker exec rabbitmq-1 rabbitmqctl list_exchanges name type --quiet | grep pedidos
+pedidos.dlx      direct
+pedidos.direct   direct
+pedidos.topic    topic
+</code></pre>
+<p><strong>Indicador “exchange direct y topic”: cumplido.</strong></p>
+<h3 id="34-politica-de-alta-disponibilidad">3.4 Política de alta disponibilidad</h3>
+<pre><code class="language-bash">$ docker exec rabbitmq-1 rabbitmqctl list_policies --quiet
+vhost  name     pattern       apply-to  definition                                    priority
+/      ha-all   ^(?!amq\.)    queues    {&quot;ha-mode&quot;:&quot;all&quot;,&quot;ha-sync-mode&quot;:&quot;automatic&quot;}   0
+</code></pre>
+<h3 id="35-demostracion-real-de-la-dead-letter-queue">3.5 Demostración real de la Dead Letter Queue</h3>
+<p>Un pedido con <code>cantidad = 150</code> excede el umbral de validación del consumidor de tickets, que responde
+<code>basicNack(requeue=false)</code>. El mensaje se enruta a <code>pedidos.dlx</code> y termina en <code>tickets.dlq</code>.</p>
+<pre><code class="language-bash">$ curl -s -u pedidos:pedidos123 http://32.200.126.178:15672/api/queues/%2F | jq -r '.[] | ...'
+documentos.dlq         msgs=0   consumers=0  node=rabbit@rabbitmq-1
+documentos.queue       msgs=0   consumers=1  node=rabbit@rabbitmq-1
+notificaciones.dlq     msgs=0   consumers=0  node=rabbit@rabbitmq-1
+notificaciones.queue   msgs=0   consumers=1  node=rabbit@rabbitmq-1
+tickets.dlq            msgs=1   consumers=0  node=rabbit@rabbitmq-1   &lt;-- mensaje muerto
+tickets.queue          msgs=0   consumers=1  node=rabbit@rabbitmq-1
+</code></pre>
+<p>El mensaje está en la DLQ y ya no en la cola original: el ciclo
+<em>publicar → consumir → fallar → nack sin requeue → DLX → DLQ</em> funciona.</p>
+<hr />
+<h2 id="4-cognito-user-pool-grupos-y-usuarios">4. Cognito — User Pool, grupos y usuarios</h2>
+<h3 id="41-usuarios-confirmados">4.1 Usuarios confirmados</h3>
+<pre><code class="language-bash">$ aws cognito-idp list-users --user-pool-id us-east-1_9b2C1fxtb \
+    --query 'Users[].[Username,UserStatus,Attributes[?Name==`email`].Value|[0]]' --output text
+8468a418-f071-70ff-2085-4a3a218bd20d   CONFIRMED   admin@pedidos360.cl
+b478a4e8-d051-704e-29d9-1fd2437e7fcc   CONFIRMED   collab@pedidos360.cl
+f4e8c408-50d1-7020-f408-c2a2d86cf5fe   CONFIRMED   cliente@pedidos360.cl
+</code></pre>
+<h3 id="42-grupos-y-pertenencia">4.2 Grupos y pertenencia</h3>
+<pre><code class="language-bash">$ aws cognito-idp list-groups --user-pool-id us-east-1_9b2C1fxtb \
+    --query 'Groups[].[GroupName,Description]' --output text
+CUSTOMER       Grupo CUSTOMER de Pedidos360
+ADMIN          Grupo ADMIN de Pedidos360
+COLLABORATOR   Grupo COLLABORATOR de Pedidos360
+
+$ for g in ADMIN COLLABORATOR CUSTOMER; do
+    echo -n &quot;$g: &quot;
+    aws cognito-idp list-users-in-group --user-pool-id us-east-1_9b2C1fxtb \
+      --group-name $g --query 'Users[].Username' --output text
+  done
+ADMIN:         8468a418-f071-70ff-2085-4a3a218bd20d
+COLLABORATOR:  b478a4e8-d051-704e-29d9-1fd2437e7fcc
+CUSTOMER:      f4e8c408-50d1-7020-f408-c2a2d86cf5fe
+</code></pre>
+<p>Cada grupo tiene exactamente un usuario, lo que permite demostrar la autorización diferenciada.</p>
+<h3 id="43-app-client-spa">4.3 App Client SPA</h3>
+<pre><code class="language-bash">$ aws cognito-idp describe-user-pool-client --user-pool-id us-east-1_9b2C1fxtb \
+    --client-id 261rvdvemjgib6n86vrb05tl9k \
+    --query 'UserPoolClient.[ClientName,ExplicitAuthFlows,AllowedOAuthFlows]'
+pedidos360-spa-v2
+[&quot;ALLOW_REFRESH_TOKEN_AUTH&quot;,&quot;ALLOW_USER_PASSWORD_AUTH&quot;]
+[&quot;code&quot;]
+</code></pre>
+<p>Flujo <em>Authorization Code + PKCE</em>, sin client secret: es la configuración correcta para una SPA.</p>
+<hr />
+<h2 id="5-api-gateway-validacion-de-jwt-y-autorizacion-por-rol">5. API Gateway — validación de JWT y autorización por rol</h2>
+<h3 id="51-endpoint-publico-sin-token">5.1 Endpoint público (sin token)</h3>
+<pre><code class="language-bash">$ curl -s https://bf0plxi897.execute-api.us-east-1.amazonaws.com/prod/api/health
+{&quot;status&quot;:&quot;UP&quot;,&quot;app&quot;:&quot;pedidos360-backend&quot;,&quot;timestamp&quot;:&quot;2026-11-02T01:14:03.756290632Z&quot;}
+</code></pre>
+<h3 id="52-endpoint-protegido-sin-token">5.2 Endpoint protegido sin token</h3>
+<pre><code class="language-bash">$ curl -o /dev/null -w &quot;%{http_code}\n&quot; \
+    https://bf0plxi897.execute-api.us-east-1.amazonaws.com/prod/api/pedidos
+401
+</code></pre>
+<p>El autorizador JWT rechaza la petición antes de llegar al backend.</p>
+<h3 id="53-con-token-de-admin">5.3 Con token de ADMIN</h3>
+<pre><code class="language-bash">$ TOKEN=$(aws cognito-idp initiate-auth \
+    --client-id 261rvdvemjgib6n86vrb05tl9k \
+    --auth-flow USER_PASSWORD_AUTH \
+    --auth-parameters USERNAME=admin@pedidos360.cl,PASSWORD=Admin1234 \
+    --query 'AuthenticationResult.IdToken' --output text)
+
+$ curl -H &quot;Authorization: Bearer $TOKEN&quot; \
+    https://bf0plxi897.execute-api.us-east-1.amazonaws.com/prod/api/pedidos
+[{&quot;id&quot;:1,&quot;producto&quot;:&quot;Notebook&quot;,&quot;cantidad&quot;:2,&quot;cliente&quot;:&quot;Demo&quot;,&quot;estado&quot;:&quot;CREADO&quot;, ...},
+ {&quot;id&quot;:2,&quot;producto&quot;:&quot;Monitor&quot;,&quot;cantidad&quot;:3,&quot;cliente&quot;:&quot;Cliente Gateway&quot;,&quot;estado&quot;:&quot;CREADO&quot;, ...},
+ {&quot;id&quot;:3,&quot;producto&quot;:&quot;Servidor&quot;,&quot;cantidad&quot;:150,&quot;cliente&quot;:&quot;Cliente DLQ&quot;,&quot;estado&quot;:&quot;CREADO&quot;, ...},
+ {&quot;id&quot;:4,&quot;producto&quot;:&quot;Teclado Mecanico&quot;,&quot;cantidad&quot;:4,&quot;cliente&quot;:&quot;Cliente UI&quot;,&quot;estado&quot;:&quot;CREADO&quot;, ...}]
+HTTP 200
+
+$ curl -X POST -H &quot;Authorization: Bearer $TOKEN&quot; -H &quot;Content-Type: application/json&quot; \
+    -d '{&quot;producto&quot;:&quot;Evidencia CLI&quot;,&quot;cantidad&quot;:2,&quot;cliente&quot;:&quot;Verificacion&quot;}' \
+    https://bf0plxi897.execute-api.us-east-1.amazonaws.com/prod/api/pedidos
+{&quot;id&quot;:5,&quot;producto&quot;:&quot;Evidencia CLI&quot;,&quot;cantidad&quot;:2,&quot;cliente&quot;:&quot;Verificacion&quot;,&quot;estado&quot;:&quot;CREADO&quot;, ...}
+HTTP 201
+</code></pre>
+<h3 id="54-con-token-de-customer-permisos-restringidos">5.4 Con token de CUSTOMER (permisos restringidos)</h3>
+<pre><code class="language-bash">$ TOKEN2=$(aws cognito-idp initiate-auth \
+    --client-id 261rvdvemjgib6n86vrb05tl9k \
+    --auth-flow USER_PASSWORD_AUTH \
+    --auth-parameters USERNAME=cliente@pedidos360.cl,PASSWORD=Cliente1234 \
+    --query 'AuthenticationResult.IdToken' --output text)
+
+GET  /api/pedidos        -&gt; 200
+POST /api/pedidos        -&gt; 403
+GET  /api/admin/queues   -&gt; 403
+</code></pre>
+<p>La misma API, el mismo endpoint, dos resultados distintos según el grupo del usuario.
+<strong>Indicador “validación de JWT y autorización por roles”: cumplido.</strong></p>
+<h3 id="55-cors">5.5 CORS</h3>
+<pre><code class="language-bash">$ curl -D- -o /dev/null -X OPTIONS \
+    -H &quot;Origin: https://32.200.126.178:8443&quot; \
+    -H &quot;Access-Control-Request-Method: GET&quot; \
+    https://bf0plxi897.execute-api.us-east-1.amazonaws.com/prod/api/pedidos
+HTTP/2 200
+access-control-allow-origin: *
+access-control-allow-methods: *
+access-control-allow-headers: *
+</code></pre>
+<hr />
+<h2 id="6-frontend-react-cognito-login-probado">6. Frontend React + Cognito — login probado</h2>
+<h3 id="61-pantalla-principal-con-sesion-iniciada">6.1 Pantalla principal con sesión iniciada</h3>
+<p>Se navegó a <code>https://32.200.126.178:8443</code>, se aceptó el certificado autofirmado y se inició sesión en el
+Hosted UI con <code>admin@pedidos360.cl</code> / <code>Admin1234</code>.</p>
+<p><img alt="Login con Cognito" src="evidencias/01-login-admin.png" /></p>
+<p>Texto extraído de la página en ese momento:</p>
+<pre><code>PEDIDOS360   Panel de pedidos
+admin@pedidos360.cl    [ADMIN]    Cerrar sesión
+
+ACCESS TOKEN (JWT)
+eyJraWQiOiJuNWd0YitvL0psNzA1NmF5RGVGdGFPWD…
+
+API GATEWAY
+https://bf0plxi897.execute-api.us-east-1.amazonaws.com/prod
+
+1  Notebook          2   Demo              CREADO
+2  Monitor           3   Cliente Gateway   CREADO
+3  Servidor        150   Cliente DLQ       CREADO
+4  Teclado Mecanico   4   Cliente UI        CREADO
+</code></pre>
+<p>Se observa el <strong>badge ADMIN</strong> derivado del claim <code>cognito:groups</code>, el <strong>JWT</strong> en memoria y los pedidos
+traídos desde el API Gateway.</p>
+<h3 id="62-alta-de-un-pedido-desde-la-interfaz">6.2 Alta de un pedido desde la interfaz</h3>
+<p>Se completó el formulario y se envió. El pedido <strong>#4 “Teclado Mecanico / 4 / Cliente UI”</strong> aparece en la
+tabla con estado <code>CREADO</code>.</p>
+<p><img alt="Crear pedido desde la UI" src="evidencias/02-crear-pedido.png" /></p>
+<p>Esto demuestra el camino completo de escritura:
+<strong>React → API Gateway (JWT) → Spring Boot → RabbitMQ → respuesta 201 → refresco de la tabla.</strong></p>
+<p><strong>Indicador “Cognito integrado con React y login probado”: cumplido.</strong></p>
+<hr />
+<h2 id="7-github-actions-pipeline-cicd-en-verde">7. GitHub Actions — pipeline CI/CD en verde</h2>
+<p>El repositorio <code>Kenpina0/pedidos360-eval2</code> tiene el workflow
+<code>.github/workflows/deploy.yml</code> con tres jobs encadenados. La ejecución <strong>41372764181</strong>
+terminó con los tres en verde:</p>
+<pre><code>✓ Build &amp; Test (Maven)   in 27s
+✓ Docker → GHCR          in 20s
+✓ Deploy en EC2          in 21s
+</code></pre>
+<h3 id="71-job-1-build-test">7.1 Job 1 — Build &amp; Test</h3>
+<pre><code class="language-bash">mvn -B -ntp clean verify
+</code></pre>
+<p>Compila el backend Spring Boot 3.3.5 con JDK 17 y publica <code>pedidos360-backend-jar</code> como artefacto.</p>
+<h3 id="72-job-2-docker-ghcr">7.2 Job 2 — Docker → GHCR</h3>
+<p>Construye la imagen multi-stage y la publica en GitHub Container Registry:</p>
+<pre><code>ghcr.io/kenpina0/pedidos360-backend:latest
+ghcr.io/kenpina0/pedidos360-backend:sha-3066e84
+</code></pre>
+<p>Verificado con la API de GitHub:</p>
+<pre><code class="language-bash">$ gh api /users/Kenpina0/packages/container/pedidos360-backend/versions     --jq '.[0].metadata.container.tags'
+[&quot;sha-3066e84&quot;,&quot;latest&quot;]
+</code></pre>
+<h3 id="73-job-3-deploy-en-ec2">7.3 Job 3 — Deploy en EC2</h3>
+<p>Se conecta por SSH con la clave guardada en el secret <code>EC2_SSH_KEY</code>, se autentica en GHCR,
+descarga la imagen y recrea <strong>solo</strong> el servicio <code>backend</code> con <code>docker compose</code>:</p>
+<pre><code>Login Succeeded
+ghcr.io/kenpina0/pedidos360-backend:latest
+ Container pedidos360-backend Recreate
+ Container pedidos360-backend Recreated
+ Container pedidos360-backend Started
+--- Desplegado. Estado del contenedor: ---
+b877c8f3b2bd   ghcr.io/kenpina0/pedidos360-backend:latest   Up   0.0.0.0:8080-&gt;8080/tcp
+--- Health check ---
+Backend OK: {&quot;status&quot;:&quot;UP&quot;,&quot;app&quot;:&quot;pedidos360-backend&quot;,&quot;timestamp&quot;:&quot;2026-11-02T01:30:57Z&quot;}
+</code></pre>
+<p>El job incluye un <em>health check</em> con reintentos: si el backend no responde en 60 segundos,
+el pipeline falla y vuelca los últimos 50 logs del contenedor.</p>
+<p><strong>Indicador “GitHub Actions → Docker → EC2”: cumplido.</strong></p>
+<hr />
+<h2 id="8-matriz-de-cumplimiento-con-la-rubrica">8. Matriz de cumplimiento con la rúbrica</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Indicador</th>
+<th>Peso</th>
+<th>Evidencia en este informe</th>
+<th>Estado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Instancia EC2 y verificación SSH</td>
+<td>12 %</td>
+<td>§2.1, §2.2</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Proyecto Spring Boot, puerto adaptado, en GitHub</td>
+<td>13 %</td>
+<td>§5.3, repo público</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>3</td>
+<td>GitHub Actions → GHCR → EC2</td>
+<td>10 %</td>
+<td>§7 (run 41372764181, 3 jobs en verde)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Cognito: User Pool, grupos, API Gateway</td>
+<td>15 %</td>
+<td>§4, §5</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Frontend React + OAuth2/OIDC + login</td>
+<td>20 %</td>
+<td>§6</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>6</td>
+<td>RabbitMQ: 2 nodos en clúster</td>
+<td>13 %</td>
+<td>§3.1</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>7</td>
+<td>RabbitMQ: 3 colas + 3 DLQ, direct y topic</td>
+<td>10 %</td>
+<td>§3.2, §3.3, §3.5</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>8</td>
+<td>docker-compose con RabbitMQ</td>
+<td>7 %</td>
+<td><code>infra/docker-compose.yml</code>, §2.3</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-conclusion">9. Conclusión</h2>
+<p>El sistema está desplegado y funcionando de extremo a extremo sobre <strong>una única instancia <code>t3.micro</code></strong>,
+sin balanceadores, sin bases de datos gestionadas y sin NAT Gateway: es decir, dentro de la capa
+gratuita que permite AWS Academy. Los ocho indicadores de la rúbrica quedan cubiertos y verificados:
+SSH, contenedores, clúster de dos nodos, seis colas con tres DLQ, exchanges direct y topic, grupos de
+Cognito, validación de JWT con autorización por rol, login OAuth2/OIDC en React y pipeline CI/CD en
+verde. Todo puede reproducirse con los comandos de <code>docs/DESPLIEGUE_REAL.md</code> §7 y
+<code>docs/ENCENDER_DE_NUEVO.md</code>.</p></body></html>

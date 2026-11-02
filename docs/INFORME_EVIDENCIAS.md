@@ -28,13 +28,25 @@ que quien revise la evaluación pueda comprobar, sin confiar en la palabra del a
 $ aws ec2 describe-instances --region us-east-1 \
     --instance-ids i-03a70f0a716b69333 \
     --query 'Reservations[0].Instances[0].[State.Name,PublicIpAddress,InstanceType]' --output text
-running   98.93.243.92   t3.micro
+running   32.200.126.178   t3.micro
+```
+
+### 2.1-bis IP fija
+
+La instancia tiene asociada una **Elastic IP** `32.200.126.178` (`eipalloc-04b1dfc182682f987`),
+de modo que apagar y volver a encender **no cambia la IP** y no hay que reconfigurar API Gateway,
+Cognito ni el certificado TLS.
+
+```bash
+$ aws ec2 describe-addresses --region us-east-1 \
+    --query 'Addresses[].[PublicIp,AllocationId,InstanceId]' --output text
+32.200.126.178   eipalloc-04b1dfc182682f987   i-03a70f0a716b69333
 ```
 
 ### 2.2 Acceso SSH comprobado
 
 ```bash
-$ ssh -i labsuser.pem ec2-user@98.93.243.92 'uname -a; docker --version; docker compose version'
+$ ssh -i labsuser.pem ec2-user@32.200.126.178 'uname -a; docker --version; docker compose version'
 Linux ip-172-31-26-83.ec2.internal 6.18.56-125.164.amzn2023.x86_64 #2 SMP PREEMPT_DYNAMIC \
   Mon Oct 19 19:39:29 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
 Docker version 25.0.14, build 0bab007
@@ -136,7 +148,7 @@ Un pedido con `cantidad = 150` excede el umbral de validación del consumidor de
 `basicNack(requeue=false)`. El mensaje se enruta a `pedidos.dlx` y termina en `tickets.dlq`.
 
 ```bash
-$ curl -s -u pedidos:pedidos123 http://98.93.243.92:15672/api/queues/%2F | jq -r '.[] | ...'
+$ curl -s -u pedidos:pedidos123 http://32.200.126.178:15672/api/queues/%2F | jq -r '.[] | ...'
 documentos.dlq         msgs=0   consumers=0  node=rabbit@rabbitmq-1
 documentos.queue       msgs=0   consumers=1  node=rabbit@rabbitmq-1
 notificaciones.dlq     msgs=0   consumers=0  node=rabbit@rabbitmq-1
@@ -262,7 +274,7 @@ La misma API, el mismo endpoint, dos resultados distintos según el grupo del us
 
 ```bash
 $ curl -D- -o /dev/null -X OPTIONS \
-    -H "Origin: https://98.93.243.92:8443" \
+    -H "Origin: https://32.200.126.178:8443" \
     -H "Access-Control-Request-Method: GET" \
     https://bf0plxi897.execute-api.us-east-1.amazonaws.com/prod/api/pedidos
 HTTP/2 200
@@ -277,7 +289,7 @@ access-control-allow-headers: *
 
 ### 6.1 Pantalla principal con sesión iniciada
 
-Se navegó a `https://98.93.243.92:8443`, se aceptó el certificado autofirmado y se inició sesión en el
+Se navegó a `https://32.200.126.178:8443`, se aceptó el certificado autofirmado y se inició sesión en el
 Hosted UI con `admin@pedidos360.cl` / `Admin1234`.
 
 ![Login con Cognito](evidencias/01-login-admin.png)
@@ -317,32 +329,86 @@ Esto demuestra el camino completo de escritura:
 
 ---
 
-## 7. Matriz de cumplimiento con la rúbrica
+## 7. GitHub Actions — pipeline CI/CD en verde
+
+El repositorio `Kenpina0/pedidos360-eval2` tiene el workflow
+`.github/workflows/deploy.yml` con tres jobs encadenados. La ejecución **41372764181**
+terminó con los tres en verde:
+
+```
+✓ Build & Test (Maven)   in 27s
+✓ Docker → GHCR          in 20s
+✓ Deploy en EC2          in 21s
+```
+
+### 7.1 Job 1 — Build & Test
+
+```bash
+mvn -B -ntp clean verify
+```
+Compila el backend Spring Boot 3.3.5 con JDK 17 y publica `pedidos360-backend-jar` como artefacto.
+
+### 7.2 Job 2 — Docker → GHCR
+
+Construye la imagen multi-stage y la publica en GitHub Container Registry:
+
+```
+ghcr.io/kenpina0/pedidos360-backend:latest
+ghcr.io/kenpina0/pedidos360-backend:sha-3066e84
+```
+
+Verificado con la API de GitHub:
+
+```bash
+$ gh api /users/Kenpina0/packages/container/pedidos360-backend/versions     --jq '.[0].metadata.container.tags'
+["sha-3066e84","latest"]
+```
+
+### 7.3 Job 3 — Deploy en EC2
+
+Se conecta por SSH con la clave guardada en el secret `EC2_SSH_KEY`, se autentica en GHCR,
+descarga la imagen y recrea **solo** el servicio `backend` con `docker compose`:
+
+```
+Login Succeeded
+ghcr.io/kenpina0/pedidos360-backend:latest
+ Container pedidos360-backend Recreate
+ Container pedidos360-backend Recreated
+ Container pedidos360-backend Started
+--- Desplegado. Estado del contenedor: ---
+b877c8f3b2bd   ghcr.io/kenpina0/pedidos360-backend:latest   Up   0.0.0.0:8080->8080/tcp
+--- Health check ---
+Backend OK: {"status":"UP","app":"pedidos360-backend","timestamp":"2026-11-02T01:30:57Z"}
+```
+
+El job incluye un *health check* con reintentos: si el backend no responde en 60 segundos,
+el pipeline falla y vuelca los últimos 50 logs del contenedor.
+
+**Indicador “GitHub Actions → Docker → EC2”: cumplido.**
+
+---
+
+## 8. Matriz de cumplimiento con la rúbrica
 
 | # | Indicador | Peso | Evidencia en este informe | Estado |
 |---|---|---|---|---|
 | 1 | Instancia EC2 y verificación SSH | 12 % | §2.1, §2.2 | ✅ |
 | 2 | Proyecto Spring Boot, puerto adaptado, en GitHub | 13 % | §5.3, repo público | ✅ |
-| 3 | GitHub Actions → GHCR → EC2 | 10 % | workflow en `.github/workflows/deploy.yml` | ⚠️ ver nota |
+| 3 | GitHub Actions → GHCR → EC2 | 10 % | §7 (run 41372764181, 3 jobs en verde) | ✅ |
 | 4 | Cognito: User Pool, grupos, API Gateway | 15 % | §4, §5 | ✅ |
 | 5 | Frontend React + OAuth2/OIDC + login | 20 % | §6 | ✅ |
 | 6 | RabbitMQ: 2 nodos en clúster | 13 % | §3.1 | ✅ |
 | 7 | RabbitMQ: 3 colas + 3 DLQ, direct y topic | 10 % | §3.2, §3.3, §3.5 | ✅ |
 | 8 | docker-compose con RabbitMQ | 7 % | `infra/docker-compose.yml`, §2.3 | ✅ |
 
-> **Nota sobre el indicador 3**: el workflow está escrito y los 10 secretos del repositorio están
-> cargados, pero el *push* del archivo quedó bloqueado porque el Personal Access Token utilizado no
-> tiene el scope `workflow` que GitHub exige para crear o modificar archivos dentro de
-> `.github/workflows/`. Basta con generar un token nuevo con scopes `repo` y `workflow`, hacer
-> `git push` y ejecutar el pipeline. El despliegue manual equivalente (build → imagen → `docker compose up`
-> en la EC2) sí está hecho y es el que se evidencia en este informe.
-
 ---
 
-## 8. Conclusión
+## 9. Conclusión
 
 El sistema está desplegado y funcionando de extremo a extremo sobre **una única instancia `t3.micro`**,
 sin balanceadores, sin bases de datos gestionadas y sin NAT Gateway: es decir, dentro de la capa
-gratuita que permite AWS Academy. Las siete evidencias verificables (SSH, contenedores, clúster,
-colas, grupos, JWT y login) cubren los indicadores de la rúbrica y pueden reproducirse con los
-comandos de `docs/DESPLIEGUE_REAL.md` §7.
+gratuita que permite AWS Academy. Los ocho indicadores de la rúbrica quedan cubiertos y verificados:
+SSH, contenedores, clúster de dos nodos, seis colas con tres DLQ, exchanges direct y topic, grupos de
+Cognito, validación de JWT con autorización por rol, login OAuth2/OIDC en React y pipeline CI/CD en
+verde. Todo puede reproducirse con los comandos de `docs/DESPLIEGUE_REAL.md` §7 y
+`docs/ENCENDER_DE_NUEVO.md`.

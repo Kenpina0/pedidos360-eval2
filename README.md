@@ -4,15 +4,19 @@
 >
 > | Qué | Dónde |
 > |---|---|
-> | Frontend (login Cognito) | **https://98.93.243.92:8443** (certificado autofirmado, aceptar advertencia) |
+> | Frontend (login Cognito) | **https://32.200.126.178:8443** (certificado autofirmado, aceptar advertencia) |
 > | API Gateway | `https://bf0plxi897.execute-api.us-east-1.amazonaws.com/prod` |
-> | Backend directo | `http://98.93.243.92:8080/api/health` |
-> | RabbitMQ consolas | `http://98.93.243.92:15672` y `:15673` (`pedidos` / `pedidos123`) |
+> | Backend directo | `http://32.200.126.178:8080/api/health` |
+> | RabbitMQ consolas | `http://32.200.126.178:15672` y `:15673` (`pedidos` / `pedidos123`) |
 > | Instancia EC2 | `i-03a70f0a716b69333` · `t3.micro` · `us-east-1` |
+> | Elastic IP (fija) | `32.200.126.178` — apagar/encender no cambia la IP |
+> | Pipeline CI/CD | GitHub Actions: 3 jobs en verde · imagen en `ghcr.io/kenpina0/pedidos360-backend` |
 > | Usuarios de prueba | `admin@pedidos360.cl`/`Admin1234` · `collab@pedidos360.cl`/`Collab1234` · `cliente@pedidos360.cl`/`Cliente1234` |
 >
-> **Documentos clave:** [`docs/DESPLIEGUE_REAL.md`](docs/DESPLIEGUE_REAL.md) (valores reales, cómo probarlo, cómo apagar la instancia) y
-> [`docs/INFORME_EVIDENCIAS.md`](docs/INFORME_EVIDENCIAS.md) (pruebas ejecutadas con sus salidas).
+> **Documentos clave:**
+> [`docs/ENCENDER_DE_NUEVO.md`](docs/ENCENDER_DE_NUEVO.md) — **cómo volver a encenderlo paso a paso**
+> · [`docs/DESPLIEGUE_REAL.md`](docs/DESPLIEGUE_REAL.md) — valores reales y cómo probarlo
+> · [`docs/INFORME_EVIDENCIAS.md`](docs/INFORME_EVIDENCIAS.md) — pruebas ejecutadas con sus salidas
 >
 > ⚠️ La instancia consume horas del laboratorio. Para detenerla:
 > `aws ec2 stop-instances --region us-east-1 --instance-ids i-03a70f0a716b69333`

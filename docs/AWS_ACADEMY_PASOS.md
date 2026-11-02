@@ -1,7 +1,7 @@
 # Guía para AWS Academy Learner Lab · Pedidos360 (DSY1107)
 
 > ⚠️ **Nota de vigencia (2026-11-02):** este documento describe el procedimiento general.
-> El despliegue que quedó **realmente funcionando** usa `https://98.93.243.92:8443` para el frontend
+> El despliegue que quedó **realmente funcionando** usa `https://32.200.126.178:8443` para el frontend
 > (Cognito exige HTTPS), el App Client `261rvdvemjgib6n86vrb05tl9k` y el API Gateway `bf0plxi897`.
 > Consulta **[`DESPLIEGUE_REAL.md`](DESPLIEGUE_REAL.md)** para los valores exactos y las diferencias.
 

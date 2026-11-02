@@ -12,8 +12,8 @@
 | Recurso | Identificador / valor | Costo |
 |---|---|---|
 | Instancia EC2 | `i-03a70f0a716b69333` — `t3.micro`, Amazon Linux 2023, 20 GB gp3 | Free tier (750 h/mes) |
-| IP pública | `98.93.243.92` | Gratis (IP dinámica, no EIP) |
-| DNS público | `ec2-98-93-243-92.compute-1.amazonaws.com` | Gratis |
+| Elastic IP | `32.200.126.178` (`eipalloc-04b1dfc182682f987`) | Gratis mientras esté asociada a la instancia |
+| DNS público | `ec2-32-200-126-178.compute-1.amazonaws.com` | Gratis |
 | Security Group | `sg-0e1a6c1707b3096a4` | Gratis |
 | Key pair | `vockey` (precreado por el lab, archivo `labsuser.pem`) | Gratis |
 | CloudFormation | stack `pedidos360-eval2` | Gratis |
@@ -22,6 +22,7 @@
 | Cognito Domain | `https://pedidos360-b2c1fxtb.auth.us-east-1.amazoncognito.com` | Gratis |
 | API Gateway HTTP API | `bf0plxi897`, stage `prod` | Free tier (1 M llamadas/mes, 12 meses) |
 | Repositorio GitHub | `https://github.com/Kenpina0/pedidos360-eval2` | Gratis |
+| GitHub Actions | pipeline CI/CD (3 jobs) + imagen en GHCR | Gratis en repo público |
 
 **No se creó**: ALB, NAT Gateway, RDS, ElastiCache, EKS, Route 53, ni instancias extra.
 Todo corre en **una sola EC2** con `docker compose` (backend + 2 nodos RabbitMQ + frontend + nginx TLS).
@@ -98,8 +99,8 @@ Cognito **rechaza callbacks con `http://` cuando el host no es `localhost`**:
 InvalidParameterException: ... cannot use the HTTP protocol
 ```
 
-Por eso el frontend se publica en `https://98.93.243.92:8443` con un certificado autofirmado
-(`subjectAltName = IP:98.93.243.92`). El navegador mostrará una advertencia de certificado:
+Por eso el frontend se publica en `https://32.200.126.178:8443` con un certificado autofirmado
+(`subjectAltName = IP:32.200.126.178`). El navegador mostrará una advertencia de certificado:
 **es esperado, se acepta con "Avanzado → Continuar"**.
 
 ### 3.2 Límites de memoria (la instancia tiene solo 913 MB de RAM)
@@ -187,7 +188,7 @@ Evidencia: `tickets.dlq` con **1 mensaje** y `tickets.queue` en 0 (ver §6).
   * Sin client secret
   * `AllowedOAuthFlows: code` (Authorization Code + PKCE)
   * `ExplicitAuthFlows: ALLOW_USER_PASSWORD_AUTH`, `ALLOW_REFRESH_TOKEN_AUTH`
-  * Callbacks: `https://98.93.243.92:8443`, `http://localhost:5173`
+  * Callbacks: `https://32.200.126.178:8443`, `http://localhost:5173`
   * Scopes: `openid email profile`
 
 > Se tuvo que **crear un cliente nuevo** porque el cliente original rechazaba los callbacks con
@@ -204,8 +205,8 @@ Evidencia: `tickets.dlq` con **1 mensaje** y `tickets.queue` en 0 (ver §6).
 
 | Ruta | Autorización | Integración |
 |---|---|---|
-| `GET /api/health` | NONE | `http://98.93.243.92:8080/api/health` (integración dedicada) |
-| `ANY /{proxy+}` | JWT | `http://98.93.243.92:8080/{proxy}` |
+| `GET /api/health` | NONE | `http://32.200.126.178:8080/api/health` (integración dedicada) |
+| `ANY /{proxy+}` | JWT | `http://32.200.126.178:8080/{proxy}` |
 | `OPTIONS /{proxy+}` | NONE | Mock / CORS |
 
 Dos bugs que hay que conocer:
@@ -241,7 +242,7 @@ Con eso el login funciona: botón → Hosted UI → credenciales → vuelta a la
 ### 6.1 SSH a la instancia
 
 ```
-$ ssh -i labsuser.pem ec2-user@98.93.243.92 'uname -a; docker --version; docker compose version'
+$ ssh -i labsuser.pem ec2-user@32.200.126.178 'uname -a; docker --version; docker compose version'
 Linux ip-172-31-26-83.ec2.internal 6.18.56-125.164.amzn2023.x86_64 ... x86_64 GNU/Linux
 Docker version 25.0.14, build 0bab007
 Docker Compose version v5.6.1
@@ -295,7 +296,7 @@ OPTIONS /prod/api/pedidos            -> 200 access-control-allow-origin: *
 
 ### 6.6 Frontend con login real
 
-Navegando a `https://98.93.243.92:8443` e iniciando sesión como `admin@pedidos360.cl`:
+Navegando a `https://32.200.126.178:8443` e iniciando sesión como `admin@pedidos360.cl`:
 
 ```
 PEDIDOS360  Panel de pedidos
@@ -323,7 +324,7 @@ Capturas: `evidencia_frontend.png` y `evidencia_crear.png`.
 ```bash
 aws ec2 describe-instances --region us-east-1 --instance-ids i-03a70f0a716b69333 \
   --query 'Reservations[0].Instances[0].[State.Name,PublicIpAddress]' --output text
-# running   98.93.243.92
+# running   32.200.126.178
 ```
 
 Si está `stopped`, arráncala:
@@ -338,7 +339,7 @@ aws ec2 start-instances --region us-east-1 --instance-ids i-03a70f0a716b69333
 ### 7.2 Probar el backend directo
 
 ```bash
-curl http://98.93.243.92:8080/api/health
+curl http://32.200.126.178:8080/api/health
 # {"status":"UP","app":"pedidos360-backend",...}
 ```
 
@@ -364,7 +365,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 ### 7.5 Probar el login en el navegador
 
-1. Abre **https://98.93.243.92:8443**
+1. Abre **https://32.200.126.178:8443**
 2. Acepta la advertencia de certificado (*Avanzado → Continuar*).
 3. Clic en **Iniciar sesión con Cognito**.
 4. Usuario `admin@pedidos360.cl`, contraseña `Admin1234`.
@@ -380,8 +381,8 @@ Repite el login con `cliente@pedidos360.cl` / `Cliente1234`:
 
 ### 7.7 Probar RabbitMQ
 
-* Consola nodo 1: `http://98.93.243.92:15672` → `pedidos` / `pedidos123`
-* Consola nodo 2: `http://98.93.243.92:15673` → `pedidos` / `pedidos123`
+* Consola nodo 1: `http://32.200.126.178:15672` → `pedidos` / `pedidos123`
+* Consola nodo 2: `http://32.200.126.178:15673` → `pedidos` / `pedidos123`
 * En *Queues and Streams* deberías ver las 6 colas y, en *Nodes*, los dos nodos del clúster.
 * Para reproducir la DLQ: crea un pedido con `cantidad = 150` y observa cómo
   `tickets.dlq` sube a 1.
@@ -389,7 +390,7 @@ Repite el login con `cliente@pedidos360.cl` / `Cliente1234`:
 ### 7.8 Probar la resiliencia del clúster
 
 ```bash
-ssh -i labsuser.pem ec2-user@98.93.243.92
+ssh -i labsuser.pem ec2-user@32.200.126.178
 docker stop rabbitmq-2
 docker exec rabbitmq-1 rabbitmqctl cluster_status   # queda 1 nodo corriendo
 docker start rabbitmq-2
@@ -409,7 +410,15 @@ aws ec2 stop-instances --region us-east-1 --instance-ids i-03a70f0a716b69333
 O desde la consola: *EC2 → Instances → `pedidos360-eval2` → Instance state → Stop instance*.
 Detenerla **no borra nada** (el disco EBS se conserva), solo deja de consumir el presupuesto de horas.
 
-### 8.2 Si cambia la IP pública
+### 8.2 La IP es fija (Elastic IP)
+
+La instancia tiene asociada la **Elastic IP `32.200.126.178`** (`eipalloc-04b1dfc182682f987`),
+por lo que **detener y volver a arrancar no cambia la IP** y no hay que reconfigurar nada.
+
+> No liberes esa Elastic IP. Si se libera, el siguiente arranque asignará una IP nueva y habrá que
+> repetir los pasos de §8.2-bis (API Gateway + Cognito + certificado + rebuild del frontend).
+
+### 8.2-bis Si aun así cambia la IP
 
 ```bash
 NEW_IP=$(aws ec2 describe-instances --region us-east-1 --instance-ids i-03a70f0a716b69333 \
@@ -433,8 +442,8 @@ aws cognito-idp update-user-pool-client --user-pool-id us-east-1_9b2C1fxtb \
 Además hay que **regenerar el certificado autofirmado** con el nuevo `subjectAltName` y
 reconstruir el contenedor `frontend-tls`.
 
-> **Truco**: para evitar todo esto, asígnale una **Elastic IP** a la instancia. En AWS Academy
-> una EIP asociada a una instancia corriendo no tiene costo; solo se cobra si queda sin asociar.
+> **Nota**: ya está aplicado — la instancia usa Elastic IP, así que este procedimiento solo hace
+> falta si alguien libera la EIP. En AWS Academy una EIP asociada a una instancia corriendo no tiene costo.
 
 ### 8.3 Borrar todo
 
@@ -458,9 +467,9 @@ aws apigatewayv2 delete-api --api-id bf0plxi897
 | Punto | Guía original | Realidad desplegada |
 |---|---|---|
 | Frontend | `http://<ip>:5173` | **`https://<ip>:8443`** (Cognito exige HTTPS) |
-| Callback Cognito | `http://...:5173` | `https://98.93.243.92:8443` |
+| Callback Cognito | `http://...:5173` | `https://32.200.126.178:8443` |
 | App Client | creado por `02-cognito.sh` | `261rvdvemjgib6n86vrb05tl9k` (`pedidos360-spa-v2`) |
-| Integración API GW | `http://<ip>:8080` | `http://98.93.243.92:8080/{proxy}` |
+| Integración API GW | `http://<ip>:8080` | `http://32.200.126.178:8080/{proxy}` |
 | Ruta OPTIONS | no existía | `OPTIONS /{proxy+}` sin autorizador |
 | Metadata OIDC | descubrimiento automático | metadata estática en `authConfig.ts` |
 | Memoria backend | sin límite | `-Xmx256m`, `mem_limit: 460m` + 2 GB swap |
