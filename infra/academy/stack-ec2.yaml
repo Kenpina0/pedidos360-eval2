@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Pedidos360 Evaluacion 2 - free tier EC2 + Security Group (AWS Academy Learner Lab)
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: vockey
+    Description: Existing key pair (Learner Lab provides vockey)
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues: [t3.micro, t3.small, t2.micro]
+  InstanceProfileName:
+    Type: String
+    Default: LabInstanceProfile
+  RepoUrl:
+    Type: String
+    Default: https://github.com/Kenpina0/pedidos360-eval2.git
+
+Resources:
+  Pedidos360SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: pedidos360-sg
+      GroupDescription: Pedidos360 - SSH, HTTP, backend, RabbitMQ
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 22,    ToPort: 22,    CidrIp: 0.0.0.0/0, Description: SSH}
+        - {IpProtocol: tcp, FromPort: 80,    ToPort: 80,    CidrIp: 0.0.0.0/0, Description: HTTP backend}
+        - {IpProtocol: tcp, FromPort: 8080,  ToPort: 8080,  CidrIp: 0.0.0.0/0, Description: Spring Boot}
+        - {IpProtocol: tcp, FromPort: 5173,  ToPort: 5173,  CidrIp: 0.0.0.0/0, Description: Frontend}
+        - {IpProtocol: tcp, FromPort: 5672,  ToPort: 5672,  CidrIp: 0.0.0.0/0, Description: RabbitMQ AMQP}
+        - {IpProtocol: tcp, FromPort: 15672, ToPort: 15672, CidrIp: 0.0.0.0/0, Description: RabbitMQ mgmt 1}
+        - {IpProtocol: tcp, FromPort: 15673, ToPort: 15673, CidrIp: 0.0.0.0/0, Description: RabbitMQ mgmt 2}
+      Tags:
+        - {Key: Name, Value: pedidos360-sg}
+        - {Key: Project, Value: pedidos360-eval2}
+
+  Pedidos360Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref InstanceProfileName
+      SecurityGroupIds:
+        - !GetAtt Pedidos360SG.GroupId
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 20
+            VolumeType: gp3
+            DeleteOnTermination: true
+      Tags:
+        - {Key: Name, Value: pedidos360-backend}
+        - {Key: Project, Value: pedidos360-eval2}
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -x
+          dnf install -y docker git tar gzip
+          systemctl enable --now docker
+          usermod -aG docker ec2-user
+          mkdir -p /usr/local/lib/docker/cli-plugins
+          curl -sSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+            -o /usr/local/lib/docker/cli-plugins/docker-compose
+          chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+          cd /home/ec2-user
+          git clone ${RepoUrl} pedidos360
+          chown -R ec2-user:ec2-user /home/ec2-user/pedidos360
+          echo "bootstrap-ok" > /var/log/pedidos360-bootstrap.done
+
+Outputs:
+  InstanceId:
+    Value: !Ref Pedidos360Instance
+    Export: {Name: pedidos360-instance-id}
+  PublicIp:
+    Value: !GetAtt Pedidos360Instance.PublicIp
+    Export: {Name: pedidos360-public-ip}
+  PublicDns:
+    Value: !GetAtt Pedidos360Instance.PublicDnsName
+    Export: {Name: pedidos360-public-dns}
+  SecurityGroupId:
+    Value: !GetAtt Pedidos360SG.GroupId
+    Export: {Name: pedidos360-sg-id}
