@@ -3,14 +3,34 @@
   "rabbitmq_version": "3.13.7",
   "product_name": "RabbitMQ",
   "product_version": "3.13.7",
-  "users": [],
-  "vhosts": [
-    { "name": "/" }
+  "users": [
+    {
+      "name": "pedidos",
+      "password_hash": "7CPBC6No0DVVdJw5LLUmYbq0A+5uH196TaG2HXQDkUPRYsXE",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "administrator"
+    }
   ],
-  "permissions": [],
-  "parameters": {},
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "pedidos",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "parameters": [],
   "global_parameters": [
-    { "name": "cluster_name", "value": "pedidos360-cluster" }
+    {
+      "name": "cluster_name",
+      "value": "pedidos360-cluster"
+    }
   ],
   "policies": [
     {
@@ -18,7 +38,10 @@
       "name": "ha-all",
       "pattern": "^(?!amq\\.)",
       "apply-to": "queues",
-      "definition": { "ha-mode": "all", "ha-sync-mode": "automatic" },
+      "definition": {
+        "ha-mode": "all",
+        "ha-sync-mode": "automatic"
+      },
       "priority": 0
     }
   ],

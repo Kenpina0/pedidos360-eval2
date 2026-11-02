@@ -1,5 +1,22 @@
 # Pedidos360 · Evaluación Parcial N°2 (DSY1107)
 
+> ## ✅ Estado: desplegado y funcionando en AWS Academy
+>
+> | Qué | Dónde |
+> |---|---|
+> | Frontend (login Cognito) | **https://98.93.243.92:8443** (certificado autofirmado, aceptar advertencia) |
+> | API Gateway | `https://bf0plxi897.execute-api.us-east-1.amazonaws.com/prod` |
+> | Backend directo | `http://98.93.243.92:8080/api/health` |
+> | RabbitMQ consolas | `http://98.93.243.92:15672` y `:15673` (`pedidos` / `pedidos123`) |
+> | Instancia EC2 | `i-03a70f0a716b69333` · `t3.micro` · `us-east-1` |
+> | Usuarios de prueba | `admin@pedidos360.cl`/`Admin1234` · `collab@pedidos360.cl`/`Collab1234` · `cliente@pedidos360.cl`/`Cliente1234` |
+>
+> **Documentos clave:** [`docs/DESPLIEGUE_REAL.md`](docs/DESPLIEGUE_REAL.md) (valores reales, cómo probarlo, cómo apagar la instancia) y
+> [`docs/INFORME_EVIDENCIAS.md`](docs/INFORME_EVIDENCIAS.md) (pruebas ejecutadas con sus salidas).
+>
+> ⚠️ La instancia consume horas del laboratorio. Para detenerla:
+> `aws ec2 stop-instances --region us-east-1 --instance-ids i-03a70f0a716b69333`
+
 Proyecto integrador que cubre, en un solo repositorio, **las 5 tareas de los videos del curso** y **los 8 indicadores de la rúbrica de RabbitMQ** de la Evaluación Parcial N°2.
 
 | Frente | Qué resuelve | Dónde está |

@@ -54,3 +54,20 @@ curl -X POST http://localhost:8080/api/pedidos \
   -d '{"producto":"Test","cantidad":150,"cliente":"QA"}'
 docker exec rabbitmq-1 rabbitmqctl list_queues name messages | grep tickets.dlq
 ```
+
+---
+
+## Estado real al 2026-11-02
+
+| Indicador | Peso | Evidencia | Estado |
+|---|---|---|---|
+| EC2 + SSH | 12 % | `i-03a70f0a716b69333` / `98.93.243.92` | ✅ |
+| Spring Boot + GitHub | 13 % | repo `Kenpina0/pedidos360-eval2` | ✅ |
+| GitHub Actions → GHCR → EC2 | 10 % | workflow listo, push bloqueado por scope `workflow` del PAT | ⚠️ |
+| Cognito + API Gateway | 15 % | pool `us-east-1_9b2C1fxtb`, API `bf0plxi897` | ✅ |
+| React + OIDC login | 20 % | `https://98.93.243.92:8443` | ✅ |
+| RabbitMQ 2 nodos | 13 % | `pedidos360-cluster` | ✅ |
+| 3 colas + 3 DLQ + direct/topic | 10 % | 6 colas, 3 exchanges, `tickets.dlq`=1 | ✅ |
+| docker-compose | 7 % | `infra/docker-compose.yml` (5 servicios) | ✅ |
+
+Detalle completo en [`INFORME_EVIDENCIAS.md`](INFORME_EVIDENCIAS.md).

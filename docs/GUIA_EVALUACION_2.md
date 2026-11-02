@@ -1,5 +1,12 @@
 # Guía de implementación · Evaluación Parcial N°2 (DSY1107)
 
+> ⚠️ **Nota de vigencia (2026-11-02):** este documento describe el procedimiento general.
+> El despliegue que quedó **realmente funcionando** usa `https://98.93.243.92:8443` para el frontend
+> (Cognito exige HTTPS), el App Client `261rvdvemjgib6n86vrb05tl9k` y el API Gateway `bf0plxi897`.
+> Consulta **[`DESPLIEGUE_REAL.md`](DESPLIEGUE_REAL.md)** para los valores exactos y las diferencias.
+
+
+
 Esta guía reproduce, paso a paso y con comandos reales, **las 5 tareas de los videos del curso** y **los 8 indicadores de la rúbrica de RabbitMQ**. Cada sección indica qué hacer, qué comando ejecutar y **qué evidencia capturar** para la evaluación.
 
 > Convención: los valores entre `<...>` debes reemplazarlos por los tuyos (región, IP, IDs de Cognito, etc.). Todos los comandos se ejecutan desde la raíz del repositorio salvo que se indique otra carpeta.
